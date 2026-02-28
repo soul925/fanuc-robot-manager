@@ -10,9 +10,9 @@ import os
 import re
 
 
-# -------------------------
+# =========================
 # SYNTAX HIGHLIGHTER
-# -------------------------
+# =========================
 
 class LsHighlighter(QSyntaxHighlighter):
 
@@ -48,9 +48,9 @@ class LsHighlighter(QSyntaxHighlighter):
                 self.setFormat(start, end - start, fmt)
 
 
-# -------------------------
+# =========================
 # NETWORK THREAD
-# -------------------------
+# =========================
 
 class ScanThread(QThread):
 
@@ -65,9 +65,9 @@ class ScanThread(QThread):
         self.result.emit(robots)
 
 
-# -------------------------
+# =========================
 # MAIN WINDOW
-# -------------------------
+# =========================
 
 class MainWindow(QMainWindow):
 
@@ -81,7 +81,15 @@ class MainWindow(QMainWindow):
         self.all_programs = []
         self.validation_errors = False
 
-        os.makedirs("programs", exist_ok=True)
+        # -----------------------------
+        # SAFE APP DATA FOLDER
+        # -----------------------------
+
+        self.app_dir = os.path.join(os.getenv("LOCALAPPDATA"), "FANUC_Robot_Manager")
+        self.program_dir = os.path.join(self.app_dir, "programs")
+        self.robots_file = os.path.join(self.app_dir, "robots.json")
+
+        os.makedirs(self.program_dir, exist_ok=True)
 
         self.build_ui()
         self.load_robots()
@@ -89,9 +97,9 @@ class MainWindow(QMainWindow):
         self.statusBar()
 
 
-# -------------------------
+# =========================
 # UI
-# -------------------------
+# =========================
 
     def build_ui(self):
 
@@ -141,19 +149,15 @@ class MainWindow(QMainWindow):
         root.addWidget(toolbar)
 
 # =========================
-# MAIN SPLITTER
+# SPLITTER
 # =========================
 
         vertical_split = QSplitter(Qt.Vertical)
 
-# =========================
-# CENTER AREA
-# =========================
-
         center_split = QSplitter(Qt.Horizontal)
         center_split.setHandleWidth(6)
 
-# -------- LEFT PANEL --------
+# LEFT PANEL
 
         left = QFrame()
         left_layout = QVBoxLayout(left)
@@ -174,7 +178,7 @@ class MainWindow(QMainWindow):
 
         center_split.addWidget(left)
 
-# -------- RIGHT PANEL --------
+# RIGHT PANEL
 
         right = QFrame()
         right_layout = QVBoxLayout(right)
@@ -184,7 +188,6 @@ class MainWindow(QMainWindow):
 
         self.editor = QTextEdit()
         self.editor.setFont(QFont("Consolas", 11))
-        self.editor.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         self.highlighter = LsHighlighter(self.editor.document())
 
@@ -214,9 +217,7 @@ class MainWindow(QMainWindow):
 
         vertical_split.addWidget(center_split)
 
-# =========================
 # LOG PANEL
-# =========================
 
         log_frame = QFrame()
         log_layout = QVBoxLayout(log_frame)
@@ -241,9 +242,7 @@ class MainWindow(QMainWindow):
 
         root.addWidget(vertical_split)
 
-# =========================
 # STYLE
-# =========================
 
         self.setStyleSheet("""
 
@@ -289,9 +288,10 @@ class MainWindow(QMainWindow):
 
         """)
 
-# -------------------------
+
+# =========================
 # LOG
-# -------------------------
+# =========================
 
     def log_msg(self, msg):
 
@@ -301,18 +301,18 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(msg)
 
 
-# -------------------------
+# =========================
 # ROBOTS
-# -------------------------
+# =========================
 
     def load_robots(self):
 
         self.robot_select.clear()
 
-        if not os.path.exists("robots.json"):
+        if not os.path.exists(self.robots_file):
             return
 
-        with open("robots.json") as f:
+        with open(self.robots_file) as f:
             data = json.load(f)
 
         for r in data["robots"]:
@@ -328,18 +328,22 @@ class MainWindow(QMainWindow):
 
         data = {"robots": []}
 
-        if os.path.exists("robots.json"):
-            with open("robots.json") as f:
+        if os.path.exists(self.robots_file):
+            with open(self.robots_file) as f:
                 data = json.load(f)
 
         data["robots"].append({"name": ip, "ip": ip})
 
-        with open("robots.json", "w") as f:
+        with open(self.robots_file, "w") as f:
             json.dump(data, f, indent=4)
 
         self.load_robots()
         self.log_msg(f"Robot added: {ip}")
 
+
+# =========================
+# CONNECT
+# =========================
 
     def connect_robot(self):
 
@@ -367,9 +371,9 @@ class MainWindow(QMainWindow):
             self.log_msg(str(e))
 
 
-# -------------------------
-# NETWORK SCAN
-# -------------------------
+# =========================
+# SCAN NETWORK
+# =========================
 
     def scan_network(self):
 
@@ -404,9 +408,9 @@ class MainWindow(QMainWindow):
                 self.add_robot()
 
 
-# -------------------------
+# =========================
 # PROGRAM LIST
-# -------------------------
+# =========================
 
     def refresh(self):
 
@@ -437,9 +441,9 @@ class MainWindow(QMainWindow):
                 self.program_list.addItem(p)
 
 
-# -------------------------
+# =========================
 # DOWNLOAD
-# -------------------------
+# =========================
 
     def open_program(self):
         self.download()
@@ -456,7 +460,7 @@ class MainWindow(QMainWindow):
             return
 
         name = item.text()
-        path = f"programs/{name}"
+        path = os.path.join(self.program_dir, name)
 
         try:
 
@@ -471,9 +475,9 @@ class MainWindow(QMainWindow):
             self.log_msg(str(e))
 
 
-# -------------------------
+# =========================
 # VALIDATION
-# -------------------------
+# =========================
 
     def check_program(self):
 
@@ -501,9 +505,9 @@ class MainWindow(QMainWindow):
             self.log_msg("Program validated successfully")
 
 
-# -------------------------
+# =========================
 # UPLOAD
-# -------------------------
+# =========================
 
     def upload(self):
 
@@ -521,7 +525,7 @@ class MainWindow(QMainWindow):
             return
 
         name = item.text()
-        path = f"programs/{name}"
+        path = os.path.join(self.program_dir, name)
 
         try:
 
